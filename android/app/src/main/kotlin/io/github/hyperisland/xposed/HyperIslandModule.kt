@@ -30,7 +30,6 @@ import io.github.hyperisland.xposed.islanddispatch.IslandDispatcher
 import io.github.hyperisland.xposed.islanddispatch.IslandRequest
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 import io.github.libxposed.api.XposedModule
-import java.lang.reflect.Method
 
 class HyperIslandModule : XposedModule() {
 
@@ -69,7 +68,7 @@ class HyperIslandModule : XposedModule() {
                 }
 
                 // 🔋 注册电池广播
-                registerBatteryReceiver(param)
+                registerBatteryReceiver()
             }
 
             "com.android.providers.downloads",
@@ -88,13 +87,10 @@ class HyperIslandModule : XposedModule() {
 
     // ==================== 🔋 电池功能 ====================
 
-    /**
-     * 通过反射获取系统全局 Context（ActivityThread.currentApplication()）
-     */
-    private fun getSystemContext(param: PackageLoadedParam): Context? {
+    private fun getSystemContext(): Context? {
         return try {
-            val clazz = param.classLoader.loadClass("android.app.ActivityThread")
-            val method: Method = clazz.getDeclaredMethod("currentApplication")
+            val clazz = Class.forName("android.app.ActivityThread")
+            val method = clazz.getDeclaredMethod("currentApplication")
             method.invoke(null) as? Context
         } catch (e: Exception) {
             log("Failed to get system context: ${e.message}")
@@ -102,8 +98,8 @@ class HyperIslandModule : XposedModule() {
         }
     }
 
-    private fun registerBatteryReceiver(param: PackageLoadedParam) {
-        val context = getSystemContext(param) ?: return
+    private fun registerBatteryReceiver() {
+        val context = getSystemContext() ?: return
         val receiver = object : BroadcastReceiver() {
             private var lastPower: Double? = null
             private var lastLevel: Int? = null
@@ -130,15 +126,18 @@ class HyperIslandModule : XposedModule() {
                     return
                 }
 
-                val bm = context?.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
-                val current = bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW) ?: 0
-                val voltage = bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_VOLTAGE_NOW) ?: 0
+                // ✅ 直接从 Intent 获取电压、电流
+                val voltage = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1)   // mV
+                val current = intent.getIntExtra(BatteryManager.EXTRA_CURRENT_NOW, -1) // mA
+
                 val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
                 val temp = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) / 10.0
                 val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
                 val health = intent.getIntExtra(BatteryManager.EXTRA_HEALTH, -1)
 
+                // 循环次数（需要 BatteryManager，可能不可用）
                 val cycleCount = try {
+                    val bm = context?.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
                     bm?.getIntProperty(5) ?: -1
                 } catch (_: Exception) {
                     -1
@@ -251,8 +250,6 @@ class HyperIslandModule : XposedModule() {
         IslandDispatcher.sendBroadcast(context, request)
         log("Battery island updated: $title | $finalContent")
     }
-
-    // ==================== 初始化 ====================
 
     private fun initializeConfigManager() {
         if (!configManagerInitialized) {
