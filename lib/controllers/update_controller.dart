@@ -8,7 +8,7 @@ import '../l10n/generated/app_localizations.dart';
 
 class UpdateController {
   static const _apiUrl =
-      'https://api.github.com/repos/1812z/HyperIsland/releases/latest';
+      'https://api.github.com/repos/ce11kjw/HyperIsland/releases/latest';
 
   /// Fetch latest release. Returns update info if [currentVersion] is outdated,
   /// otherwise null. Throws on network / parse errors.
