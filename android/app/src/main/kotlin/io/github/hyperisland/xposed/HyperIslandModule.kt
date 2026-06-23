@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.drawable.Icon
 import android.os.BatteryManager
 import io.github.hyperisland.xposed.hook.SystemUI.BigIslandMinWidthHook
 import io.github.hyperisland.xposed.hook.SystemUI.IslandTopOffsetHook
@@ -29,6 +30,7 @@ import io.github.hyperisland.xposed.islanddispatch.IslandDispatcher
 import io.github.hyperisland.xposed.islanddispatch.IslandRequest
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 import io.github.libxposed.api.XposedModule
+import java.lang.reflect.Method
 
 class HyperIslandModule : XposedModule() {
 
@@ -86,15 +88,28 @@ class HyperIslandModule : XposedModule() {
 
     // ==================== 🔋 电池功能 ====================
 
+    /**
+     * 通过反射获取系统全局 Context（ActivityThread.currentApplication()）
+     */
+    private fun getSystemContext(param: PackageLoadedParam): Context? {
+        return try {
+            val clazz = param.classLoader.loadClass("android.app.ActivityThread")
+            val method: Method = clazz.getDeclaredMethod("currentApplication")
+            method.invoke(null) as? Context
+        } catch (e: Exception) {
+            log("Failed to get system context: ${e.message}")
+            null
+        }
+    }
+
     private fun registerBatteryReceiver(param: PackageLoadedParam) {
-        val context = param.appContext ?: return
+        val context = getSystemContext(param) ?: return
         val receiver = object : BroadcastReceiver() {
             private var lastPower: Double? = null
             private var lastLevel: Int? = null
             private var lastTemp: Double? = null
 
             override fun onReceive(context: Context?, intent: Intent?) {
-                // 🔋 读取开关状态
                 val enabled = ConfigManager.getBoolean("pref_battery_island", false)
                 if (!enabled) {
                     sendBatteryIsland(context, null)
@@ -159,7 +174,8 @@ class HyperIslandModule : XposedModule() {
         log("BatteryReceiver registered")
     }
 
-    private fun sendBatteryIsland(context: Context?, data: Map<String, Any>?) {
+    @Suppress("UNCHECKED_CAST")
+    private fun sendBatteryIsland(context: Context?, data: Map<String, Any?>?) {
         if (context == null) return
 
         if (data == null || data["isCharging"] != true) {
@@ -171,19 +187,17 @@ class HyperIslandModule : XposedModule() {
             return
         }
 
-        val level = data["level"] as? Int ?: 0
+        val level = (data["level"] as? Int) ?: 0
         val power = (data["power"] as? Double) ?: 0.0
-        val temp = data["temp"] as? Double ?: 0.0
-        val voltage = data["voltage"] as? Int ?: 0
-        val current = data["current"] as? Int ?: 0
-        val plugged = data["plugged"] as? Int ?: -1
-        val health = data["health"] as? Int ?: -1
-        val cycleCount = data["cycleCount"] as? Int ?: -1
+        val temp = (data["temp"] as? Double) ?: 0.0
+        val voltage = (data["voltage"] as? Int) ?: 0
+        val current = (data["current"] as? Int) ?: 0
+        val plugged = (data["plugged"] as? Int) ?: -1
+        val health = (data["health"] as? Int) ?: -1
+        val cycleCount = (data["cycleCount"] as? Int) ?: -1
 
-        // 小岛（折叠）显示功率
         val title = if (power > 0) String.format("%.1fW", power) else "充电中"
 
-        // 大岛（展开）显示完整信息
         val pluggedText = when (plugged) {
             BatteryManager.BATTERY_PLUGGED_AC -> "⚡有线"
             BatteryManager.BATTERY_PLUGGED_USB -> "🔌USB"
@@ -214,12 +228,17 @@ class HyperIslandModule : XposedModule() {
         val maxLen = 45
         val finalContent = if (content.length > maxLen) content.take(maxLen - 3) + "..." else content
 
-        val iconRes = context.resources?.getIdentifier("battery_icon", "drawable", "com.android.systemui") ?: 0
+        val icon = try {
+            val resId = context.resources?.getIdentifier("battery_icon", "drawable", "com.android.systemui") ?: 0
+            if (resId != 0) Icon.createWithResource(context, resId) else null
+        } catch (_: Exception) {
+            null
+        }
 
         val request = IslandRequest(
             title = title,
             content = finalContent,
-            icon = iconRes,
+            icon = icon,
             firstFloat = true,
             enableFloat = true,
             clearBeforePost = true,
