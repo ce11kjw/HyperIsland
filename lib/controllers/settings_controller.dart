@@ -20,6 +20,9 @@ const kPrefBluetoothIslandWhitelistEnabled =
 const kPrefBluetoothIslandWhitelistAddresses =
     'pref_bluetooth_island_whitelist_addresses';
 
+// 🔋 电池功率岛开关（新增）
+const kPrefBatteryIsland = 'pref_battery_island';
+
 const kPrefInteractionHaptics = 'pref_interaction_haptics';
 const kPrefRoundIcon = 'pref_round_icon';
 const kPrefMarqueeFeature = 'pref_marquee_feature';
@@ -160,6 +163,8 @@ class SettingsController extends ChangeNotifier {
   String bluetoothIslandOuterGlowColor = '';
   bool bluetoothIslandWhitelistEnabled = false;
   List<String> bluetoothIslandWhitelistAddresses = [];
+  // 🔋 电池功率岛开关（新增）
+  bool batteryIsland = false;
   bool interactionHaptics = true;
   bool roundIcon = true;
   bool marqueeFeature = false;
@@ -249,6 +254,8 @@ class SettingsController extends ChangeNotifier {
     bluetoothIslandWhitelistAddresses = _decodeStringList(
       prefs.getString(kPrefBluetoothIslandWhitelistAddresses),
     );
+    // 🔋 读取电池岛开关
+    batteryIsland = prefs.getBool(kPrefBatteryIsland) ?? false;
     interactionHaptics = prefs.getBool(kPrefInteractionHaptics) ?? true;
     roundIcon = prefs.getBool(kPrefRoundIcon) ?? true;
     marqueeFeature = prefs.getBool(kPrefMarqueeFeature) ?? false;
@@ -432,6 +439,15 @@ class SettingsController extends ChangeNotifier {
       );
     }
     bluetoothIslandWhitelistAddresses = List.unmodifiable(addresses);
+    notifyListeners();
+  }
+
+  // 🔋 电池岛开关 Setter（新增）
+  Future<void> setBatteryIsland(bool value) async {
+    if (batteryIsland == value) return;
+    final prefs = await _getPrefs();
+    await prefs.setBool(kPrefBatteryIsland, value);
+    batteryIsland = value;
     notifyListeners();
   }
 
@@ -888,8 +904,6 @@ class SettingsController extends ChangeNotifier {
 
   Future<void> setIslandBgSmallPath(String value) async {
     final normalized = value.trim();
-    // Always write and notify — the file content may have changed even if
-    // the path string is the same (overwrite), so the UI must refresh.
     final prefs = await _getPrefs();
     if (normalized.isEmpty) {
       await prefs.remove(kPrefIslandBgSmallPath);
@@ -902,8 +916,6 @@ class SettingsController extends ChangeNotifier {
 
   Future<void> setIslandBgBigPath(String value) async {
     final normalized = value.trim();
-    // Always write and notify — the file content may have changed even if
-    // the path string is the same (overwrite), so the UI must refresh.
     final prefs = await _getPrefs();
     if (normalized.isEmpty) {
       await prefs.remove(kPrefIslandBgBigPath);
@@ -916,8 +928,6 @@ class SettingsController extends ChangeNotifier {
 
   Future<void> setIslandBgExpandPath(String value) async {
     final normalized = value.trim();
-    // Always write and notify — the file content may have changed even if
-    // the path string is the same (overwrite), so the UI must refresh.
     final prefs = await _getPrefs();
     if (normalized.isEmpty) {
       await prefs.remove(kPrefIslandBgExpandPath);
