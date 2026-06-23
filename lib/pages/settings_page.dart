@@ -385,14 +385,14 @@ class _SettingsPageState extends State<SettingsPage> {
                             'GitHub',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
-                          subtitle: const Text('1812z/HyperIsland'),
+                          subtitle: const Text('ce11kjw/HyperIsland'),
                           trailing:
                               const Icon(Icons.open_in_new, size: 18),
                           onTap: InteractionHaptics.interceptButton(
                             () async {
                               await launchUrl(
                                 Uri.parse(
-                                  'https://github.com/1812z/HyperIsland',
+                                  'https://github.com/ce11kjw/HyperIsland',
                                 ),
                                 mode: LaunchMode.externalApplication,
                               );
