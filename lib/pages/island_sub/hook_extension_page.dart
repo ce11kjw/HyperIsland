@@ -339,6 +339,23 @@ class _HookExtensionPageState extends State<HookExtensionPage> {
                     ),
                   ),
                 ),
+                // 🔋 充电功率岛开关（新增）
+                const SizedBox(height: 8),
+                _SectionLabel('充电功率岛'),
+                const SizedBox(height: 8),
+                Card(
+                  elevation: 0,
+                  color: cs.surfaceContainerHighest,
+                  child: SwitchListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    title: Text('充电功率岛', style: titleStyle),
+                    subtitle: const Text('充电时小岛显示功率，大岛显示电池详情'),
+                    value: _ctrl.batteryIsland,
+                    onChanged: InteractionHaptics.interceptToggle(
+                      (v) => _ctrl.setBatteryIsland(v),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 32),
               ], addAutomaticKeepAlives: false),
             ),
