@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: '版本号（格式：1.5.0）'
+        description: '版本号（格式：1.5.0)'
         required: false
         type: string
       build_only:
@@ -104,6 +104,40 @@ jobs:
       - name: Decode keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.jks
+
+      # 在构建 APK 之前预先安装 NDK，避免 Gradle 在配置阶段自动下载失败
+      - name: Install Android NDK and accept licenses
+        env:
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        run: |
+          set -e
+          # 找到 sdkmanager
+          if [ -x "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" ]; then
+            SDKMANAGER="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
+          elif [ -x "${ANDROID_SDK_ROOT}/tools/bin/sdkmanager" ]; then
+            SDKMANAGER="${ANDROID_SDK_ROOT}/tools/bin/sdkmanager"
+          elif command -v sdkmanager >/dev/null 2>&1; then
+            SDKMANAGER="$(command -v sdkmanager)"
+          else
+            echo "sdkmanager not found at expected paths"; exit 1
+          fi
+
+          NDK_PACKAGE="ndk;27.0.12077973"
+
+          # 重试逻辑以处理临时网络/服务器或损坏的归档
+          for i in 1 2 3; do
+            echo "Attempt $i to install $NDK_PACKAGE"
+            yes | "$SDKMANAGER" --install "$NDK_PACKAGE" && break || {
+              echo "Install failed, retrying in 10s..."
+              sleep 10
+            }
+            if [ $i -eq 3 ]; then
+              echo "Failed to install $NDK_PACKAGE after retries"; exit 1
+            fi
+          done
+
+          # 接受许可（宽容处理，不让它失败）
+          yes | "$SDKMANAGER" --licenses || true
 
       # 第八步：编译 APK（✅ 已修正 KEYSTORE_PATH 路径）
       - name: Build APK
