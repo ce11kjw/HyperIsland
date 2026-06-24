@@ -87,6 +87,9 @@ class HyperIslandModule : XposedModule() {
 
     // ==================== 🔋 电池功能 ====================
 
+    /**
+     * 通过反射获取系统全局 Context
+     */
     private fun getSystemContext(): Context? {
         return try {
             val clazz = Class.forName("android.app.ActivityThread")
@@ -99,14 +102,24 @@ class HyperIslandModule : XposedModule() {
     }
 
     private fun registerBatteryReceiver() {
-        val context = getSystemContext() ?: return
+        log("registerBatteryReceiver: trying to get system context")
+        val context = getSystemContext()
+        if (context == null) {
+            log("registerBatteryReceiver: context is null, cannot register")
+            return
+        }
+        log("registerBatteryReceiver: context obtained, registering receiver")
+
         val receiver = object : BroadcastReceiver() {
             private var lastPower: Double? = null
             private var lastLevel: Int? = null
             private var lastTemp: Double? = null
 
             override fun onReceive(context: Context?, intent: Intent?) {
+                // 读取开关状态
                 val enabled = ConfigManager.getBoolean("pref_battery_island", false)
+                log("Battery broadcast received, enabled=$enabled")
+
                 if (!enabled) {
                     sendBatteryIsland(context, null)
                     return
@@ -126,16 +139,16 @@ class HyperIslandModule : XposedModule() {
                     return
                 }
 
-                // ✅ 直接从 Intent 获取电压、电流
+                // ✅ 使用 BatteryManager.EXTRA_CURRENT_NOW 获取电流
                 val voltage = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1)   // mV
-                val current = intent.getIntExtra("current", -1) // mA
+                val current = intent.getIntExtra(BatteryManager.EXTRA_CURRENT_NOW, -1) // mA
 
                 val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
                 val temp = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) / 10.0
                 val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
                 val health = intent.getIntExtra(BatteryManager.EXTRA_HEALTH, -1)
 
-                // 循环次数（需要 BatteryManager，可能不可用）
+                // 循环次数（部分设备支持）
                 val cycleCount = try {
                     val bm = context?.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
                     bm?.getIntProperty(5) ?: -1
@@ -147,10 +160,13 @@ class HyperIslandModule : XposedModule() {
                     (kotlin.math.abs(current) / 1000.0) * (voltage / 1000.0)
                 } else null
 
+                // 防抖
                 if (power == lastPower && level == lastLevel && temp == lastTemp) return
                 lastPower = power
                 lastLevel = level
                 lastTemp = temp
+
+                log("Battery data: level=$level, power=$power, temp=$temp, current=$current, voltage=$voltage")
 
                 val batteryData = mapOf(
                     "level" to level,
@@ -170,7 +186,7 @@ class HyperIslandModule : XposedModule() {
 
         batteryReceiver = receiver
         context.registerReceiver(receiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        log("BatteryReceiver registered")
+        log("BatteryReceiver registered successfully")
     }
 
     @Suppress("UNCHECKED_CAST")
