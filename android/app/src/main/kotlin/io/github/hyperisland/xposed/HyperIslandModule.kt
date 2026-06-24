@@ -128,7 +128,7 @@ class HyperIslandModule : XposedModule() {
 
                 // ✅ 直接从 Intent 获取电压、电流
                 val voltage = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1)   // mV
-                val current = intent.getIntExtra(BatteryManager.EXTRA_CURRENT_NOW, -1) // mA
+                val current = intent.getIntExtra("current", -1) // mA - 使用通用 key 代替不可用的常量
 
                 val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
                 val temp = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) / 10.0
