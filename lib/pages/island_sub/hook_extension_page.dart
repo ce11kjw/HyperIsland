@@ -33,6 +33,7 @@ class _HookExtensionPageState extends State<HookExtensionPage> {
     _ctrl.smoothIslandSmoothing,
     _ctrl.unlockAllFocus,
     _ctrl.unlockFocusAuth,
+    _ctrl.batteryIsland,   // 🔋 关键修复
   ]);
 
   void _onChanged() {
@@ -339,7 +340,7 @@ class _HookExtensionPageState extends State<HookExtensionPage> {
                     ),
                   ),
                 ),
-                // 🔋 充电功率岛开关（新增）
+                // 🔋 充电功率岛开关
                 const SizedBox(height: 8),
                 _SectionLabel('充电功率岛'),
                 const SizedBox(height: 8),
