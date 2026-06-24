@@ -254,7 +254,8 @@ class XposedPrefsSyncApp : Application(), XposedServiceHelper.OnServiceListener 
             "pref_temp_hide_screen_locked",
             "pref_temp_hide_notification_center",
             "pref_blur_bars",
-            "pref_debug_log"
+            "pref_debug_log",
+            "pref_battery_island"   // 🔋 新增：电池岛开关
         )
 
         private object ServiceState {
